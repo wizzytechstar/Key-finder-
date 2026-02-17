@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceKey Finder</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .title-font { font-family: 'Space Grotesk', sans-serif; }
+    
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(1); opacity: 0.8; }
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    
+    .recording-pulse {
+      animation: pulse-ring 1.5s ease-in-out infinite;
+    }
+    
+    .float-animation {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .gradient-bg {
+      background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 50%, #e8f0fe 100%);
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+    
+    .progress-fill {
+      transition: width 0.3s ease-out;
+    }
+  </style>
+</head>
+<body class="h-full gradient-bg">
+  <div id="app-container" class="h-full w-full overflow-auto">
+    <div class="min-h-full w-full flex flex-col items-center justify-center p-6">
+      
+      <!-- Header -->
+      <header class="text-center mb-8">
+        <h1 id="app-title" class="title-font text-4xl md:text-5xl font-bold text-gray-800 mb-2">
+          VoiceKey Finder
+        </h1>
+        <p id="tagline" class="text-gray-500 text-lg">Discover your natural singing key</p>
+      </header>
+
+      <!-- Main Card -->
+      <main class="w-full max-w-md">
+        <div class="glass-card rounded-3xl shadow-xl p-8">
+          
+          <!-- Status Display -->
+          <div id="status-section" class="text-center mb-8">
+            <div id="mic-visualizer" class="relative w-32 h-32 mx-auto mb-6">
+              <!-- Outer ring -->
+              <div id="pulse-ring" class="absolute inset-0 rounded-full bg-gray-200 opacity-0"></div>
+              <!-- Inner circle -->
+              <div id="mic-circle" class="absolute inset-2 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner transition-all duration-300">
+                <span class="text-5xl">🎤</span>
+              </div>
+            </div>
+            
+            <p id="status-text" class="text-gray-600 font-medium text-lg">
+              Tap Start to begin singing
+            </p>
+            
+            <!-- Progress Bar (hidden initially) -->
+            <div id="progress-container" class="hidden mt-4">
+              <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 progress-fill" style="width: 0%"></div>
+              </div>
+              <p id="progress-text" class="text-sm text-gray-500 mt-2">0 / 15 seconds</p>
+            </div>
+          </div>
+
+          <!-- Control Buttons -->
+          <div id="controls" class="flex gap-4 justify-center mb-6">
+            <button id="start-btn" class="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-lg">
+              ▶ Start
+            </button>
+            <button id="stop-btn" class="px-8 py-4 bg-gray-200 text-gray-400 font-semibold rounded-2xl cursor-not-allowed text-lg" disabled>
+              ■ Stop
+            </button>
+          </div>
+
+          <!-- Results Section (hidden initially) -->
+          <div id="results-section" class="hidden">
+            <div class="border-t border-gray-200 pt-6">
+              
+              <!-- Primary Result -->
+              <div class="text-center mb-6 float-animation">
+                <div class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl shadow-lg mb-4">
+                  <span class="text-lg opacity-80">Your Natural Key</span>
+                </div>
+                <h2 id="result-key" class="title-font text-6xl font-bold text-gray-800">
+                  G Major
+                </h2>
+              </div>
+
+              <!-- Details Grid -->
+              <div class="grid grid-cols-1 gap-4">
+                
+                <div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-4">
+                  <span class="text-3xl">🎹</span>
+                  <div>
+                    <p class="text-sm text-gray-500 font-medium">Start Playing From</p>
+                    <p id="result-root" class="text-xl font-bold text-gray-800">G</p>
+                  </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-4">
+                  <span class="text-3xl">📏</span>
+                  <div>
+                    <p class="text-sm text-gray-500 font-medium">Vocal Comfort Range</p>
+                    <p id="result-range" class="text-xl font-bold text-gray-800">D3 – A4</p>
+                  </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-4">
+                  <span class="text-3xl">🔥</span>
+                  <div>
+                    <p class="text-sm text-gray-500 font-medium">Comfort Score</p>
+                    <p id="result-comfort" class="text-xl font-bold text-green-600">High</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Key Options -->
+              <div class="mt-6 bg-indigo-50 rounded-2xl p-4">
+                <p class="text-sm text-indigo-600 font-semibold mb-3 text-center">Alternative Keys</p>
+                <div class="flex justify-center gap-4">
+                  <div class="text-center">
+                    <p class="text-xs text-gray-500">Lower</p>
+                    <p id="lower-key" class="text-lg font-bold text-gray-700">F</p>
+                  </div>
+                  <div class="text-center px-6 border-x border-indigo-200">
+                    <p class="text-xs text-indigo-600">Primary</p>
+                    <p id="primary-key" class="text-lg font-bold text-indigo-700">G</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-xs text-gray-500">Higher</p>
+                    <p id="higher-key" class="text-lg font-bold text-gray-700">A</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Try Again Button -->
+              <button id="reset-btn" class="w-full mt-6 py-4 bg-gray-100 text-gray-600 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-200">
+                🔄 Try Again
+              </button>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer Tip -->
+        <p class="text-center text-gray-400 text-sm mt-6 px-4">
+          💡 Sing naturally for 10-15 seconds for best results
+        </p>
+
+      </main>
+
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const defaultConfig = {
+      app_title: 'VoiceKey Finder',
+      tagline: 'Discover your natural singing key',
+      primary_color: '#4f46e5',
+      secondary_color: '#7c3aed',
+      background_color: '#fafbfc',
+      text_color: '#1f2937',
+      accent_color: '#10b981'
+    };
+
+    let config = { ...defaultConfig };
+
+    // Element SDK initialization
+    function onConfigChange(newConfig) {
+      config = { ...defaultConfig, ...newConfig };
+      
+      document.getElementById('app-title').textContent = config.app_title || defaultConfig.app_title;
+      document.getElementById('tagline').textContent = config.tagline || defaultConfig.tagline;
+    }
+
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => { config.background_color = value; window.elementSdk.setConfig({ background_color: value }); }
+          },
+          {
+            get: () => config.primary_color || defaultConfig.primary_color,
+            set: (value) => { config.primary_color = value; window.elementSdk.setConfig({ primary_color: value }); }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => { config.text_color = value; window.elementSdk.setConfig({ text_color: value }); }
+          }
+        ],
+        borderables: [],
+        fontEditable: undefined,
+        fontSizeable: undefined
+      };
+    }
+
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ['app_title', config.app_title || defaultConfig.app_title],
+        ['tagline', config.tagline || defaultConfig.tagline]
+      ]);
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+
+    // Audio and pitch detection variables
+    let audioContext = null;
+    let analyser = null;
+    let mediaStream = null;
+    let isRecording = false;
+    let recordingStartTime = 0;
+    let animationFrameId = null;
+    
+    const RECORDING_DURATION = 15; // seconds
+    const MIN_FREQUENCY = 80; // Hz (approximately E2)
+    const MAX_FREQUENCY = 1000; // Hz (approximately B5)
+    const STABILITY_THRESHOLD = 0.15; // Hz - notes within this range are considered the same
+    const MIN_SUSTAINED_FRAMES = 3; // Minimum frames to count as "held"
+    const SPIKE_REJECTION_THRESHOLD = 50; // Hz - reject pitches that jump this much between frames
+    
+    // Note tracking - COMPLETE OVERHAUL for sustained tracking
+    let noteHistory = [];
+    let sustainedNoteSessions = []; // Array of {note, startTime, endTime, duration, count}
+    let currentNoteSession = null;
+    let lowestNote = null;
+    let highestNote = null;
+    let lastValidPitch = null;
+    let consecutiveStablePitches = 0;
+
+    // Musical note definitions
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const A4_FREQUENCY = 440;
+
+    // DOM Elements
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const statusText = document.getElementById('status-text');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const resultsSection = document.getElementById('results-section');
+    const pulseRing = document.getElementById('pulse-ring');
+    const micCircle = document.getElementById('mic-circle');
+
+    // Convert frequency to note name and octave
+    function frequencyToNote(frequency) {
+      if (frequency < MIN_FREQUENCY || frequency > MAX_FREQUENCY) return null;
+      
+      const noteNum = 12 * (Math.log2(frequency / A4_FREQUENCY));
+      const noteIndex = Math.round(noteNum) + 57; // A4 is at index 57
+      const octave = Math.floor(noteIndex / 12);
+      const noteName = NOTE_NAMES[((noteIndex % 12) + 12) % 12];
+      
+      return {
+        name: noteName,
+        octave: octave,
+        fullName: noteName + octave,
+        noteIndex: noteIndex,
+        frequency: frequency
+      };
+    }
+
+    // YIN pitch detection algorithm (complete implementation)
+    function detectPitch(buffer, sampleRate) {
+      const bufferSize = buffer.length;
+      const yinBuffer = new Float32Array(bufferSize / 2);
+      
+      let runningSum = 0;
+      yinBuffer[0] = 1;
+      
+      // Difference function
+      for (let tau = 1; tau < bufferSize / 2; tau++) {
+        let sum = 0;
+        for (let i = 0; i < bufferSize / 2; i++) {
+          const delta = buffer[i] - buffer[i + tau];
+          sum += delta * delta;
+        }
+        yinBuffer[tau] = sum;
+      }
+      
+      // Cumulative mean normalized difference
+      for (let tau = 1; tau < bufferSize / 2; tau++) {
+        runningSum += yinBuffer[tau];
+        yinBuffer[tau] *= tau / runningSum;
+      }
+      
+      // Find the first tau that is below threshold
+      const threshold = 0.1;
+      let tauEstimate = -1;
+      
+      for (let tau = 2; tau < bufferSize / 2; tau++) {
+        if (yinBuffer[tau] < threshold) {
+          while (tau + 1 < bufferSize / 2 && yinBuffer[tau + 1] < yinBuffer[tau]) {
+            tau++;
+          }
+          tauEstimate = tau;
+          break;
+        }
+      }
+      
+      if (tauEstimate === -1 || tauEstimate === 0) return -1;
+      
+      // Parabolic interpolation for better accuracy
+      const s0 = yinBuffer[tauEstimate - 1];
+      const s1 = yinBuffer[tauEstimate];
+      const s2 = yinBuffer[tauEstimate + 1];
+      
+      const betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
+      const frequency = sampleRate / betterTau;
+      
+      return frequency;
+    }
+
+    // Check if pitch is stable (not a spike)
+    function isStablePitch(newPitch, lastPitch) {
+      if (!lastPitch || lastPitch < 0) return true;
+      
+      const difference = Math.abs(newPitch - lastPitch);
+      return difference < SPIKE_REJECTION_THRESHOLD;
+    }
+
+    // Check if two notes are the same (within stability threshold)
+    function isSameNote(note1, note2) {
+      if (!note1 || !note2) return false;
+      return Math.abs(note1.frequency - note2.frequency) < STABILITY_THRESHOLD;
+    }
+
+    // Track sustained notes properly
+    function trackSustainedNote(note) {
+      if (!currentNoteSession) {
+        // Start new session
+        currentNoteSession = {
+          note: note.fullName,
+          noteIndex: note.noteIndex,
+          startTime: Date.now(),
+          frameCount: 1
+        };
+      } else if (currentNoteSession.note === note.fullName) {
+        // Continue current session
+        currentNoteSession.frameCount++;
+      } else {
+        // Different note - save previous session and start new one
+        if (currentNoteSession.frameCount >= MIN_SUSTAINED_FRAMES) {
+          currentNoteSession.endTime = Date.now();
+          currentNoteSession.duration = currentNoteSession.endTime - currentNoteSession.startTime;
+          sustainedNoteSessions.push(currentNoteSession);
+        }
+        
+        // Start new session
+        currentNoteSession = {
+          note: note.fullName,
+          noteIndex: note.noteIndex,
+          startTime: Date.now(),
+          frameCount: 1
+        };
+      }
+    }
+
+    // Main audio processing loop
+    function processAudio() {
+      if (!isRecording) return;
+      
+      const bufferLength = analyser.fftSize;
+      const buffer = new Float32Array(bufferLength);
+      analyser.getFloatTimeDomainData(buffer);
+      
+      // Check if there's audio signal
+      let maxAmplitude = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        maxAmplitude = Math.max(maxAmplitude, Math.abs(buffer[i]));
+      }
+      
+      // Only process if there's sufficient signal (not silence)
+      if (maxAmplitude > 0.01) {
+        const rawPitch = detectPitch(buffer, audioContext.sampleRate);
+        
+        // Reject spikes - check if this pitch is a sudden jump
+        if (rawPitch > MIN_FREQUENCY && rawPitch < MAX_FREQUENCY && isStablePitch(rawPitch, lastValidPitch)) {
+          const note = frequencyToNote(rawPitch);
+          
+          if (note) {
+            // Track sustained notes
+            trackSustainedNote(note);
+            
+            // Add to history
+            noteHistory.push({
+              note: note.fullName,
+              noteIndex: note.noteIndex,
+              timestamp: Date.now(),
+              frequency: rawPitch
+            });
+            
+            // Track range
+            if (lowestNote === null || note.noteIndex < lowestNote.noteIndex) {
+              lowestNote = note;
+            }
+            if (highestNote === null || note.noteIndex > highestNote.noteIndex) {
+              highestNote = note;
+            }
+            
+            lastValidPitch = rawPitch;
+          }
+        }
+      }
+      
+      // Update progress
+      const elapsed = (Date.now() - recordingStartTime) / 1000;
+      const progress = Math.min(elapsed / RECORDING_DURATION * 100, 100);
+      progressBar.style.width = progress + '%';
+      progressText.textContent = Math.floor(elapsed) + ' / ' + RECORDING_DURATION + ' seconds';
+      
+      if (elapsed >= RECORDING_DURATION) {
+        stopRecording();
+        return;
+      }
+      
+      animationFrameId = requestAnimationFrame(processAudio);
+    }
+
+    // Start recording
+    async function startRecording() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+        
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.8;
+        
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        source.connect(analyser);
+        
+        // Reset ALL tracking variables
+        noteHistory = [];
+        sustainedNoteSessions = [];
+        currentNoteSession = null;
+        lowestNote = null;
+        highestNote = null;
+        lastValidPitch = null;
+        consecutiveStablePitches = 0;
+        
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        // Update UI
+        startBtn.disabled = true;
+        startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        stopBtn.disabled = false;
+        stopBtn.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+        stopBtn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
+        
+        statusText.textContent = '🎵 Sing naturally now...';
+        progressContainer.classList.remove('hidden');
+        resultsSection.classList.add('hidden');
+        
+        pulseRing.classList.add('recording-pulse', 'opacity-100', 'bg-red-400');
+        micCircle.classList.remove('from-gray-100', 'to-gray-200');
+        micCircle.classList.add('from-red-100', 'to-red-200');
+        
+        processAudio();
+        
+      } catch (error) {
+        statusText.textContent = '⚠️ Microphone access denied. Please allow access and try again.';
+        console.error('Microphone error:', error);
+      }
+    }
+
+    // Stop recording
+    function stopRecording() {
+      isRecording = false;
+      
+      // Save final note session if it exists
+      if (currentNoteSession && currentNoteSession.frameCount >= MIN_SUSTAINED_FRAMES) {
+        currentNoteSession.endTime = Date.now();
+        currentNoteSession.duration = currentNoteSession.endTime - currentNoteSession.startTime;
+        sustainedNoteSessions.push(currentNoteSession);
+      }
+      
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+      
+      if (audioContext) {
+        audioContext.close();
+      }
+      
+      // Reset UI
+      startBtn.disabled = false;
+      startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      stopBtn.disabled = true;
+      stopBtn.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+      stopBtn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+      
+      pulseRing.classList.remove('recording-pulse', 'opacity-100', 'bg-red-400');
+      micCircle.classList.add('from-gray-100', 'to-gray-200');
+      micCircle.classList.remove('from-red-100', 'to-red-200');
+      
+      progressContainer.classList.add('hidden');
+      
+      // Analyze results
+      analyzeResults();
+    }
+
+    // Analyze and display results - COMPLETE REWRITE
+    function analyzeResults() {
+      if (sustainedNoteSessions.length === 0) {
+        statusText.textContent = '😕 No singing detected. Please try again and sing clearly.';
+        return;
+      }
+      
+      // STEP 1: Find most frequently sung note
+      const noteCounts = {};
+      sustainedNoteSessions.forEach(session => {
+        noteCounts[session.note] = (noteCounts[session.note] || 0) + 1;
+      });
+      
+      let mostFrequentNote = null;
+      let maxCount = 0;
+      for (const [note, count] of Object.entries(noteCounts)) {
+        if (count > maxCount) {
+          maxCount = count;
+          mostFrequentNote = note;
+        }
+      }
+      
+      // STEP 2: Find longest sustained note
+      let longestSustainedSession = null;
+      let maxDuration = 0;
+      sustainedNoteSessions.forEach(session => {
+        if (session.duration > maxDuration) {
+          maxDuration = session.duration;
+          longestSustainedSession = session;
+        }
+      });
+      
+      // STEP 3: Find final note sung (last in history)
+      let finalNote = null;
+      if (noteHistory.length > 0) {
+        finalNote = noteHistory[noteHistory.length - 1].note;
+      }
+      
+      // STEP 4: Weight sustained notes heavily - calculate weighted score
+      let dominantNoteCandidate = null;
+      let maxWeightedScore = 0;
+      
+      const uniqueNotes = new Set(sustainedNoteSessions.map(s => s.note));
+      
+      uniqueNotes.forEach(note => {
+        const sessionsForNote = sustainedNoteSessions.filter(s => s.note === note);
+        const totalDuration = sessionsForNote.reduce((sum, s) => sum + s.duration, 0);
+        const frequency = sessionsForNote.length;
+        
+        // Heavy weighting toward sustained duration
+        const weightedScore = (totalDuration / 1000) * 0.7 + frequency * 0.3;
+        
+        if (weightedScore > maxWeightedScore) {
+          maxWeightedScore = weightedScore;
+          dominantNoteCandidate = note;
+        }
+      });
+      
+      // STEP 5: Choose tonal center (dominant stable note + influence from final note)
+      let finalRootNote = dominantNoteCandidate;
+      
+      // If final note is different and it's a strong note, consider it
+      if (finalNote && finalNote !== dominantNoteCandidate) {
+        const finalNoteSessions = sustainedNoteSessions.filter(s => s.note === finalNote);
+        if (finalNoteSessions.length > 0) {
+          const finalNoteDuration = finalNoteSessions.reduce((sum, s) => sum + s.duration, 0);
+          if (finalNoteDuration > maxDuration * 0.5) {
+            // Final note is strong enough - blend the decision
+            // But keep dominant as primary since it was weighted more
+            finalRootNote = dominantNoteCandidate;
+          }
+        }
+      }
+      
+      // Extract root note name (without octave)
+      const rootNote = finalRootNote.replace(/[0-9]/g, '');
+      const rootIndex = NOTE_NAMES.indexOf(rootNote);
+      
+      // STEP 6: Generate key adjustment suggestions (semitone steps)
+      const lowerKey = NOTE_NAMES[(rootIndex - 1 + 12) % 12];
+      const higherKey = NOTE_NAMES[(rootIndex + 1) % 12];
+      
+      // STEP 7: Calculate comfort score based on:
+      // - Vocal range width
+      // - Sustained note stability (longer sustained = more stable/comfortable)
+      // - Consistency (fewer jumps between notes = more comfortable)
+      
+      let comfortScore = 'Medium';
+      let comfortColor = 'text-yellow-600';
+      
+      const rangeWidth = (highestNote.noteIndex - lowestNote.noteIndex);
+      const averageSustainedDuration = sustainedNoteSessions.reduce((sum, s) => sum + s.duration, 0) / sustainedNoteSessions.length;
+      const noteSwitchCount = sustainedNoteSessions.length;
+      
+      // Comfort scoring logic:
+      // - Wide range (8+ semitones) = comfortable
+      // - Good sustained durations (avg > 1 second) = comfortable
+      // - Few note switches (less than total * 0.3) = consistent = comfortable
+      
+      let comfortPoints = 0;
+      
+      if (rangeWidth >= 8) {
+        comfortPoints += 2; // Good range
+      } else if (rangeWidth >= 5) {
+        comfortPoints += 1;
+      }
+      
+      if (averageSustainedDuration > 1000) {
+        comfortPoints += 2; // Long sustained notes = stable singing
+      } else if (averageSustainedDuration > 500) {
+        comfortPoints += 1;
+      }
+      
+      // Check consistency: total unique notes vs session count
+      if (uniqueNotes.size <= noteSwitchCount * 0.4) {
+        comfortPoints += 2; // Singing mostly 1-2 notes = consistent
+      } else if (uniqueNotes.size <= noteSwitchCount * 0.7) {
+        comfortPoints += 1;
+      }
+      
+      if (comfortPoints >= 5) {
+        comfortScore = 'High';
+        comfortColor = 'text-green-600';
+      } else if (comfortPoints <= 2) {
+        comfortScore = 'Low';
+        comfortColor = 'text-red-500';
+      }
+      
+      // Update results UI
+      document.getElementById('result-key').textContent = rootNote + ' Major';
+      document.getElementById('result-root').textContent = rootNote;
+      document.getElementById('result-range').textContent = 
+        (lowestNote ? lowestNote.fullName : 'N/A') + ' – ' + 
+        (highestNote ? highestNote.fullName : 'N/A');
+      
+      const comfortEl = document.getElementById('result-comfort');
+      comfortEl.textContent = comfortScore;
+      comfortEl.className = 'text-xl font-bold ' + comfortColor;
+      
+      document.getElementById('lower-key').textContent = lowerKey;
+      document.getElementById('primary-key').textContent = rootNote;
+      document.getElementById('higher-key').textContent = higherKey;
+      
+      statusText.textContent = '✨ Analysis complete!';
+      resultsSection.classList.remove('hidden');
+    }
+
+    // Reset for new recording
+    function resetApp() {
+      resultsSection.classList.add('hidden');
+      progressBar.style.width = '0%';
+      statusText.textContent = 'Tap Start to begin singing';
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startRecording);
+    stopBtn.addEventListener('click', stopRecording);
+    resetBtn.addEventListener('click', resetApp);
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cf3523f32ba94f6',t:'MTc3MTMxMDcyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
